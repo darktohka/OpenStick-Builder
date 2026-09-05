@@ -11,9 +11,7 @@ rm -rf ${CHROOT}
 debootstrap --foreign --arch arm64 \
     --keyring /usr/share/keyrings/debian-archive-keyring.gpg ${RELEASE} ${CHROOT}
 
-cp $(which qemu-aarch64-static) ${CHROOT}/usr/bin
-
-chroot ${CHROOT} qemu-aarch64-static /bin/bash /debootstrap/debootstrap --second-stage
+chroot ${CHROOT} /bin/bash /debootstrap/debootstrap --second-stage
 
 cat << EOF > ${CHROOT}/etc/apt/sources.list
 deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
@@ -28,7 +26,7 @@ mount -o bind /dev/pts/ ${CHROOT}/dev/pts/
 mount -o bind /run ${CHROOT}/run/
 
 cp scripts/setup.sh ${CHROOT}
-chroot ${CHROOT} qemu-aarch64-static /bin/sh -c /setup.sh
+chroot ${CHROOT} /bin/sh -c /setup.sh
 
 # cleanup
 for a in proc sys dev/pts dev run; do
@@ -124,6 +122,6 @@ mkdir -p ${CHROOT}/etc/frp
 cp configs/frp/frpc.toml ${CHROOT}/etc/frp/frpc.toml
 
 # backup rootfs
-tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
+tar cpzf rootfs.tgz -C rootfs .
 
 echo "done"
