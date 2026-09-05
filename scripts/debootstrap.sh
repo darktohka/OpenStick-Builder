@@ -3,7 +3,7 @@ set -e
 set -x
 
 CHROOT=${CHROOT=$(pwd)/rootfs}
-RELEASE=${RELEASE=sid}
+RELEASE=${RELEASE=stable}
 HOST_NAME=${HOST_NAME=openstick-debian}
 
 rm -rf ${CHROOT}
