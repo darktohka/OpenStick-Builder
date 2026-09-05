@@ -3,7 +3,7 @@ set -e
 set -x
 
 CHROOT=${CHROOT=$(pwd)/rootfs}
-RELEASE=${RELEASE=stable}
+RELEASE=${RELEASE=sid}
 HOST_NAME=${HOST_NAME=openstick-debian}
 
 rm -rf ${CHROOT}
@@ -15,8 +15,6 @@ chroot ${CHROOT} /bin/bash /debootstrap/debootstrap --second-stage
 
 cat << EOF > ${CHROOT}/etc/apt/sources.list
 deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
-deb http://deb.debian.org/debian-security/ ${RELEASE}-security main contrib non-free-firmware
-deb http://deb.debian.org/debian ${RELEASE}-updates main contrib non-free-firmware
 EOF
 
 mount -t proc proc ${CHROOT}/proc/
