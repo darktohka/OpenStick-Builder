@@ -15,5 +15,8 @@ scripts/debootstrap.sh
 echo "\nBuild gadget-tools\n"
 scripts/build_gt.sh
 
+echo "\nBuild sms-gateway\n"
+scripts/build_sms_gateway.sh
+
 echo "\nCreate images\n"
 scripts/build_images.sh

@@ -13,3 +13,7 @@
 [submodule "src/libusbgx"]
 	path = src/libusbgx
 	url = https://github.com/linux-usb-gadgets/libusbgx
+[submodule "src/sms-gateway"]
+	path = src/sms-gateway
+	url = https://github.com/darktohka/sms-gateway.git
+	branch = main

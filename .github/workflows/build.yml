@@ -12,6 +12,17 @@ jobs:
         with:
           submodules: true
 
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/sms-gateway/src/go.mod
+          cache-dependency-path: src/sms-gateway/src/go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: src/sms-gateway/src/web/package-lock.json
+
       - name: Install dependencies
         run: sudo sh -e scripts/install_deps.sh
 
@@ -26,6 +37,9 @@ jobs:
 
       - name: Build gadget-tool
         run: sudo sh -e scripts/build_gt.sh
+
+      - name: Build sms-gateway
+        run: sudo sh -e scripts/build_sms_gateway.sh
 
       - name: Create images
         run: sudo sh -e scripts/build_images.sh

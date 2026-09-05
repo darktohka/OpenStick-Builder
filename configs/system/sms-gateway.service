@@ -1,0 +1,25 @@
+[Unit]
+# sms-gateway talks raw AT to the modem over /dev/wwan0at1 (see
+# configs/sms-gateway/sms-gateway.conf). The port is excluded from
+# ModemManager by configs/udev/rules.d/99-sms-gateway.rules so both can run at
+# once: ModemManager keeps wwan0at0 + wwan0qmi0 for the cellular data link,
+# sms-gateway owns wwan0at1 for SMS.
+Description=SMS Gateway (REST API + WebUI over AT modem port)
+Documentation=https://github.com/mattboston/sms-gateway
+After=ModemManager.service network.target
+Wants=ModemManager.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/sms-gateway
+ExecStart=/usr/local/bin/sms-gateway serve --config-file /opt/sms-gateway/sms-gateway.conf
+Restart=on-failure
+RestartSec=5
+
+# wwan0at1 is a root:root crw------- device; keep dialout as a fallback.
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

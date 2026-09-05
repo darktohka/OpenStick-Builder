@@ -70,5 +70,20 @@ mkdir -p ${CHROOT}/lib/firmware/msm-firmware-loader
 # update fstab
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > ${CHROOT}/etc/fstab
 
+# setup sms-gateway.
+#
+# The binary itself is staged into dist/usr/local/bin by build_sms_gateway.sh
+# and lands on the final rootfs via build_images.sh's `cp -a dist/* mnt`. The
+# config file and the runtime directory it points at are created here so the
+# unit can start on first boot. The service is enabled through the
+# multi-user.target.wants symlink in configs/system/.
+mkdir -p ${CHROOT}/opt/sms-gateway
+cp configs/sms-gateway/sms-gateway.conf ${CHROOT}/opt/sms-gateway/sms-gateway.conf
+
+# Reserve /dev/wwan0at1 for sms-gateway so ModemManager leaves it alone
+# (ModemManager keeps /dev/wwan0at0 + /dev/wwan0qmi0 for the wwan0 data link).
+mkdir -p ${CHROOT}/etc/udev/rules.d
+cp configs/udev/rules.d/99-sms-gateway.rules ${CHROOT}/etc/udev/rules.d/99-sms-gateway.rules
+
 # backup rootfs
 tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .

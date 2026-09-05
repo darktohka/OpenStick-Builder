@@ -46,6 +46,10 @@ This has been tested to work on **Ubuntu 22.04**
   ```shell
   sudo scripts/build_gt.sh
   ```
+- build sms-gateway (needs Go >= 1.25 and Node.js >= 20.19 on the host)
+  ```shell
+  sudo scripts/build_sms_gateway.sh
+  ```
 - create images
   ```shell
   sudo scripts/build_images.sh

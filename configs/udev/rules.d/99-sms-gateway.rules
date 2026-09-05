@@ -1,0 +1,8 @@
+# Reserve /dev/wwan0at1 for sms-gateway so ModemManager never grabs it.
+#
+# The MSM8916 modem exposes three rpmsg ports: wwan0at0 (AT), wwan0at1 (AT)
+# and wwan0qmi0 (QMI). ModemManager uses wwan0at0 + wwan0qmi0 to run the
+# cellular data connection (wwan0). sms-gateway sends/receives SMS over the
+# second AT port, so mark it a non-candidate and tell ModemManager to ignore
+# it entirely.
+SUBSYSTEM=="wwan", KERNEL=="wwan0at1", ENV{ID_MM_CANDIDATE}="0", ENV{ID_MM_PORT_IGNORE}="1"
