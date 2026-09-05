@@ -17,3 +17,6 @@
 	path = src/sms-gateway
 	url = https://github.com/darktohka/sms-gateway.git
 	branch = main
+[submodule "src/frp"]
+	path = src/frp
+	url = https://github.com/fatedier/frp.git

@@ -1,0 +1,42 @@
+# frpc configuration template.
+#
+# frp (https://github.com/fatedier/frp) lets the OpenStick reach out to a
+# public frps server and expose local services (SSH, the sms-gateway WebUI,
+# ...) through it. Only frpc is installed on the stick; frps runs on your
+# server.
+#
+# The frpc.service unit is present in the image but DISABLED by default:
+# edit this file with your real frps details and the proxies you want, then
+# `systemctl enable --now frpc`.
+
+# Your frps server.
+serverAddr = "frp.example.com"
+serverPort = 7000
+
+# Shared secret, must match frps' auth.token. Change it!
+auth.token = "change-me"
+
+# Optional: enable the local admin API (control/reload over HTTP). frpc is
+# built without the embedded web UI, so this only exposes the JSON API.
+# webServer.addr = "127.0.0.1"
+# webServer.port = 7400
+# webServer.user = "admin"
+# webServer.password = "change-me"
+
+# Example: expose the OpenStick's SSH (port 22) as <remotePort> on the frps
+# server. Remove or extend the [[proxies]] blocks as needed.
+[[proxies]]
+name = "openstick-ssh"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 22
+remotePort = 6022
+
+# Example: expose the sms-gateway WebUI/REST API (port 5174) as <remotePort>
+# on the frps server.
+# [[proxies]]
+# name = "openstick-sms-gateway"
+# type = "tcp"
+# localIP = "127.0.0.1"
+# localPort = 5174
+# remotePort = 65174

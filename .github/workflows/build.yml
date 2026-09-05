@@ -15,7 +15,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: src/sms-gateway/src/go.mod
-          cache-dependency-path: src/sms-gateway/src/go.sum
+          cache-dependency-path: |
+            src/sms-gateway/src/go.sum
+            src/frp/go.sum
 
       - uses: actions/setup-node@v4
         with:
@@ -40,6 +42,9 @@ jobs:
 
       - name: Build sms-gateway
         run: sudo sh -e scripts/build_sms_gateway.sh
+
+      - name: Build frpc
+        run: sudo sh -e scripts/build_frpc.sh
 
       - name: Create images
         run: sudo sh -e scripts/build_images.sh

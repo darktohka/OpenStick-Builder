@@ -1,0 +1,27 @@
+[Unit]
+# frpc tunnels this OpenStick's local services (SSH, sms-gateway WebUI, ...)
+# out to a public frps server. See configs/frp/frpc.toml and docs/frpc.md.
+#
+# The unit is shipped in the image but NOT enabled: it only starts after you
+# fill in your frps details in /etc/frp/frpc.toml and run
+# `systemctl enable --now frpc`.
+Description=frp client (tunnel local services to a public frps server)
+Documentation=https://github.com/fatedier/frp
+After=network-online.target sms-gateway.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/frpc -c /etc/frp/frpc.toml
+Restart=on-failure
+RestartSec=5
+# frpc re-reads the config on SIGHUP, but a plain restart is enough too.
+ExecReload=/bin/kill -HUP $MAINPID
+
+# The tunnel is only useful once the cellular data link (wwan0) is up, so let
+# networkd reach the running state first. If the modem never connects frpc
+# keeps retrying until it does.
+[Install]
+WantedBy=multi-user.target

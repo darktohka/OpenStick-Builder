@@ -50,6 +50,10 @@ This has been tested to work on **Ubuntu 22.04**
   ```shell
   sudo scripts/build_sms_gateway.sh
   ```
+- build frpc (needs Go >= 1.25 on the host)
+  ```shell
+  sudo scripts/build_frpc.sh
+  ```
 - create images
   ```shell
   sudo scripts/build_images.sh
@@ -184,6 +188,7 @@ Edit [`scripts/setup.sh`](scripts/setup.sh) to add/remove packages. Note that th
   | `cleanup-wwan.service` | Moves the spurious per-slot modem links (`wwan1`..`wwan7`) into a `null` netns so only `wwan0` is visible to NetworkManager; restarts ModemManager if `wwan0` has no address yet. Runs [`/usr/local/sbin/cleanup-wwan`](scripts/cleanup-wwan). |
   | `disable-cpu-cores.service` | Powers off CPU cores 2 and 3 to save power on this 4-core SoC. |
   | `sms-gateway.service` | Runs the bundled [`sms-gateway`](https://github.com/mattboston/sms-gateway) REST API + WebUI. Sends/receives SMS over `/dev/wwan0at1`; see [SMS gateway](docs/sms-gateway.md) below. |
+  | `frpc.service` | Optional reverse tunnel. Installed but **disabled** — enables remote SSH/sms-gateway access from a public `frps` server once you fill in `/etc/frp/frpc.toml`; see [frpc](docs/frpc.md) below. |
 
   ```shell
   systemctl status cleanup-wwan disable-cpu-cores
@@ -227,6 +232,25 @@ Edit [`scripts/setup.sh`](scripts/setup.sh) to add/remove packages. Note that th
   > `root:root` `crw-------` device `/dev/wwan0at1`) and disables the upstream
   > unit's `ProtectSystem`/`ProtectHome` hardening so the SQLite database can
   > be created under `/opt/sms-gateway`.
+
+- frpc (remote access)
+
+  The image also bundles an `arm64` build of
+  [frpc](https://github.com/fatedier/frp) (from the `src/frp` submodule,
+  tag `v0.71.0`, built by [`scripts/build_frpc.sh`](scripts/build_frpc.sh)).
+  Because the stick is behind the carrier NAT on `wwan0`, frpc dials *out* to
+  a public `frps` server you run, so you can SSH in or reach the sms-gateway
+  WebUI from anywhere.
+
+  The `frpc.service` unit and a config template (`/etc/frp/frpc.toml`) are
+  installed but frpc is **disabled by default** — you must first put your own
+  `serverAddr` / `auth.token` / `[[proxies]]` into the config, then:
+
+  ```shell
+  sudo systemctl enable --now frpc
+  ```
+
+  See [`docs/frpc.md`](docs/frpc.md) for details.
 
 - USB network (usb0)
 

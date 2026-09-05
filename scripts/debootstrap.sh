@@ -108,6 +108,19 @@ cp configs/sms-gateway/sms-gateway.conf ${CHROOT}/opt/sms-gateway/sms-gateway.co
 mkdir -p ${CHROOT}/etc/udev/rules.d
 cp configs/udev/rules.d/99-sms-gateway.rules ${CHROOT}/etc/udev/rules.d/99-sms-gateway.rules
 
+# setup frpc.
+#
+# The binary itself is staged into dist/usr/local/bin by build_frpc.sh and
+# lands on the final rootfs via build_images.sh's `cp -a dist/* mnt`. The
+# config template is created here so the unit has something to read. Unlike
+# sms-gateway, frpc is intentionally NOT enabled by default: there is no
+# multi-user.target.wants symlink for it, and the config ships with a
+# placeholder server, so it only starts once the user fills in their frps
+# details and runs `systemctl enable --now frpc`. The unit itself is installed
+# by the configs/system/ copy above.
+mkdir -p ${CHROOT}/etc/frp
+cp configs/frp/frpc.toml ${CHROOT}/etc/frp/frpc.toml
+
 # backup rootfs
 tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
 
