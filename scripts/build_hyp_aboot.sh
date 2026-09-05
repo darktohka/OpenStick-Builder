@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-make -C src/qhypstub CROSS_COMPILE=aarch64-unknown-linux-gnu-
+make -C src/qhypstub CROSS_COMPILE=aarch64-linux-gnu-
 
 # patch to reduce mmc speed as some boards have intermittent failures when
 # inititalizing the mmc (maybe due to using old/recycled flash chips)
