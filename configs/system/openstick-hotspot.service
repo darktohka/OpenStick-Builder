@@ -1,0 +1,25 @@
+[Unit]
+# OpenStick WiFi hotspot driven by hostapd instead of NetworkManager.
+#
+# NetworkManager's built-in hotspot feature relies on wpa_supplicant, which
+# races with the wcn36xx driver's periodic scans on the wlan0 device (see
+# docs/hotspot.md for the full diagnosis). hostapd talks to the driver
+# directly via nl80211 and does not perform those scans, so AP mode comes up
+# reliably.
+#
+# Before hostapd starts, ExecStartPre puts wlan0 into AP mode, assigns the
+# 192.168.4.1/24 address and installs the NAT rules that let hotspot clients
+# reach the internet through the wwan0 (LTE) uplink.
+Description=OpenStick WiFi Hotspot (hostapd + NAT)
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/sbin/openstick-hotspot-setup.sh
+ExecStart=/usr/sbin/hostapd /etc/hostapd/hostapd.conf
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

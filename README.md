@@ -132,25 +132,107 @@ Edit [`scripts/setup.sh`](scripts/setup.sh) to add/remove packages. Note that th
   ```
 
 ## Post-Install
-- Network configuration
-  
+
+- Default user
+
+  | | |
+  | ----- | ---- |
+  | username | user |
+  | password | 1 |
+
+- WiFi hotspot (wlan0)
+
+  A **hostapd**-based access point is started automatically at boot by the
+  `openstick-hotspot.service` and `dnsmasq-openstick.service` units. Connect
+  to it from any Wi-Fi client:
+
   | wlan0 | |
   | ----- | ---- |
   | ssid | Openstick |
   | password | openstick |
   | ip addr | 192.168.4.1 |
+  | DHCP range | 192.168.4.10 - 192.168.4.250 |
 
-  | usb0 | |
-  | ----- | ---- |
-  | ip addr | 192.168.5.1 |
+  Hotspot clients reach the internet through the LTE uplink (wwan0) via NAT.
 
-- Default user
-  
-  | | |
-  | ----- | ---- |
-  | username | user |
-  | password | 1 |
- 
+  Control it with:
+  ```shell
+  sudo systemctl start/stop openstick-hotspot.service
+  sudo systemctl restart openstick-hotspot.service
+  sudo systemctl status openstick-hotspot.service
+  ```
+  To change SSID/password/channel, edit `/etc/hostapd/hostapd.conf` and
+  restart the service. See [`docs/hotspot.md`](docs/hotspot.md) for why the
+  hotspot runs on hostapd instead of NetworkManager.
+
+  > [!NOTE]
+  > The wlan0 interface is intentionally left **unmanaged** by NetworkManager
+  > so it never interferes with hostapd. If you want to join a Wi-Fi network
+  > instead (client mode), stop the hotspot first, remove the
+  > `unmanaged-devices=interface-name:wlan0` line from
+  > `/etc/NetworkManager/NetworkManager.conf`, then use `nmcli` as usual.
+
+- Device tuning (systemd services)
+
+  A few oneshot units run at boot to make the modem stick behave on the
+  MSM8916 SoC. They are installed by the image and live in
+  [`configs/system/`](configs/system/) with their helper scripts in
+  [`scripts/`](scripts/):
+
+  | Unit | What it does |
+  | ---- | ------------ |
+  | `cleanup-wwan.service` | Moves the spurious per-slot modem links (`wwan1`..`wwan7`) into a `null` netns so only `wwan0` is visible to NetworkManager; restarts ModemManager if `wwan0` has no address yet. Runs [`/usr/local/sbin/cleanup-wwan`](scripts/cleanup-wwan). |
+  | `disable-cpu-cores.service` | Powers off CPU cores 2 and 3 to save power on this 4-core SoC. |
+  | `sms-gateway.service` | Runs the bundled [`sms-gateway`](https://github.com/mattboston/sms-gateway) REST API + WebUI. Sends/receives SMS over `/dev/wwan0at1`; see [SMS gateway](docs/sms-gateway.md) below. |
+
+  ```shell
+  systemctl status cleanup-wwan disable-cpu-cores
+  systemctl disable --now disable-cpu-cores.service   # re-enable the extra cores, if ever needed
+  ```
+
+- SMS gateway
+
+  The image bundles an `arm64` build of
+  [sms-gateway](https://github.com/mattboston/sms-gateway) (built from the
+  `src/sms-gateway` submodule by [`scripts/build_sms_gateway.sh`](scripts/build_sms_gateway.sh))
+  and starts it at boot via `sms-gateway.service`. It exposes:
+
+  | What | Where |
+  | ---- | ----- |
+  | WebUI + REST API | `http://<device>:5174` (login `admin` / `admin123` on first boot — change it!) |
+  | config file | `/opt/sms-gateway/sms-gateway.conf` |
+  | database | `/opt/sms-gateway/sms-gateway.db` (SQLite) |
+
+  See [`docs/sms-gateway.md`](docs/sms-gateway.md) for how it coexists with
+  ModemManager and how to build/update it.
+
+  The modem on these sticks is a Qualcomm SoC rpmsg device, **not** a USB
+  serial dongle, so there is no `/dev/ttyUSB*`. sms-gateway talks raw AT over
+  the second modem AT port `/dev/wwan0at1`, which
+  [`configs/udev/rules.d/99-sms-gateway.rules`](configs/udev/rules.d/99-sms-gateway.rules)
+  reserves for it by excluding it from ModemManager. ModemManager keeps
+  `/dev/wwan0at0` + `/dev/wwan0qmi0` for the cellular data connection
+  (`wwan0`), so both run side by side.
+
+  Control it with:
+
+  ```shell
+  systemctl status sms-gateway
+  sudo systemctl restart sms-gateway
+  sudo systemctl disable --now sms-gateway    # stop + disable at boot
+  ```
+
+  > [!NOTE]
+  > The built-in service intentionally runs as `root` (it must open the
+  > `root:root` `crw-------` device `/dev/wwan0at1`) and disables the upstream
+  > unit's `ProtectSystem`/`ProtectHome` hardening so the SQLite database can
+  > be created under `/opt/sms-gateway`.
+
+- USB network (usb0)
+
+  Managed by NetworkManager; exposes `192.168.5.1` to the host over the USB
+  RNDIS/ECM gadget link.
+
 - If your device is not based on **UZ801**, modify `/boot/extlinux/extlinux.conf` to use the correct devicetree
   ```shell
   sed -i 's/yiming-uz801v3/<BOARD>/' /boot/extlinux/extlinux.conf

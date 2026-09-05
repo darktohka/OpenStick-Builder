@@ -1,0 +1,12 @@
+[Unit]
+Description=Disable CPU cores 2 and 3
+After=systemd-udev-settle.service
+Before=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 0 > /sys/devices/system/cpu/cpu2/online; echo 0 > /sys/devices/system/cpu/cpu3/online'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

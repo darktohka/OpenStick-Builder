@@ -1,17 +1,19 @@
 #!/bin/sh -e
+set -e
+set -x
 
 CHROOT=${CHROOT=$(pwd)/rootfs}
-RELEASE=${RELEASE=stable}
+RELEASE=${RELEASE=sid}
 HOST_NAME=${HOST_NAME=openstick-debian}
 
 rm -rf ${CHROOT}
 
 debootstrap --foreign --arch arm64 \
-    --keyring /usr/share/keyrings/debian-archive-keyring.gpg ${RELEASE} ${CHROOT}
+    --keyring keyrings/debian-archive-keyring.gpg  --include qemu-user ${RELEASE} ${CHROOT}
 
-cp $(which qemu-aarch64-static) ${CHROOT}/usr/bin
+#cp $(which qemu-aarch64) ${CHROOT}/usr/bin/qemu-aarch64-static
 
-chroot ${CHROOT} qemu-aarch64-static /bin/bash /debootstrap/debootstrap --second-stage
+chroot ${CHROOT} qemu-aarch64 /bin/bash /debootstrap/debootstrap --second-stage
 
 cat << EOF > ${CHROOT}/etc/apt/sources.list
 deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
@@ -26,7 +28,7 @@ mount -o bind /dev/pts/ ${CHROOT}/dev/pts/
 mount -o bind /run ${CHROOT}/run/
 
 cp scripts/setup.sh ${CHROOT}
-chroot ${CHROOT} qemu-aarch64-static /bin/sh -c /setup.sh
+chroot ${CHROOT} qemu-aarch64 /bin/sh -c /setup.sh
 
 # cleanup
 for a in proc sys dev/pts dev run; do
@@ -39,15 +41,36 @@ echo -n > ${CHROOT}/root/.bash_history
 echo ${HOST_NAME} > ${CHROOT}/etc/hostname
 sed -i "/localhost/ s/$/ ${HOST_NAME}/" ${CHROOT}/etc/hosts
 
-# setup systemd services
+# setup systemd services.
+#
+# configs/system/ is copied verbatim into /etc/systemd/system, including the
+# *.wants/ symlink trees, which is what enables the units for their targets
+# (multi-user.target.wants/, usb-gadget.target.wants/). Units enabled this
+# way: cleanup-wwan, disable-cpu-cores, dnsmasq-openstick, msm-firmware-loader,
+# openstick-hotspot, usb-gadget.
 cp -a configs/system/* ${CHROOT}/etc/systemd/system
 
 cp -a scripts/msm-firmware-loader.sh ${CHROOT}/usr/sbin
+cp -a scripts/openstick-hotspot-setup.sh ${CHROOT}/usr/local/sbin
+# cleanup-wwan is ExecStart'd by cleanup-wwan.service
+cp -a scripts/cleanup-wwan ${CHROOT}/usr/local/sbin
 
-# setup NetworkManager
-cp configs/*.nmconnection ${CHROOT}/etc/NetworkManager/system-connections
+# setup NetworkManager + wifi hotspot
+mkdir -p ${CHROOT}/etc/NetworkManager ${CHROOT}/etc/hostapd
+cp configs/NetworkManager.conf ${CHROOT}/etc/NetworkManager/NetworkManager.conf
+cp configs/hostapd.conf ${CHROOT}/etc/hostapd/hostapd.conf
+cp configs/dnsmasq-openstick.conf ${CHROOT}/etc/dnsmasq-openstick.conf
+
+# setup the NM-managed wired/LTE connections (usb0 and wwan0)
+#
+# The wifi hotspot (wlan0) is intentionally NOT set up as an NM connection:
+# NetworkManager's hotspot feature relies on wpa_supplicant, which races with
+# the wcn36xx driver's scans and fails to bring up the access point. wlan0 is
+# served by hostapd instead (see docs/hotspot.md). NM is told to leave wlan0
+# alone via the [keyfile] unmanaged-devices entry in NetworkManager.conf, so
+# the old bundled hotspot.nmconnection is dropped to avoid confusion.
+cp configs/lte.nmconnection configs/usb.nmconnection ${CHROOT}/etc/NetworkManager/system-connections
 chmod 0600 ${CHROOT}/etc/NetworkManager/system-connections/*
-sed -i '/\[main\]/a dns=dnsmasq' ${CHROOT}/etc/NetworkManager/NetworkManager.conf
 
 # enable autoconnect for usb0
 cat << EOF > ${CHROOT}/etc/udev/rules.d/99-nm-usb0.rules
@@ -55,7 +78,7 @@ SUBSYSTEM=="net", ACTION=="add|change|move", ENV{DEVTYPE}=="gadget", ENV{NM_UNMA
 EOF
 
 # install kernel
-wget -O - http://mirror.postmarketos.org/postmarketos/v24.06/aarch64/linux-postmarketos-qcom-msm8916-6.6-r5.apk \
+wget -O - https://mirror.postmarketos.org/postmarketos/v26.06/aarch64/linux-postmarketos-qcom-msm8916-6.12.1-r5.apk \
     | tar xkzf - -C ${CHROOT} --exclude=.PKGINFO --exclude=.SIGN* 2>/dev/null
 
 mkdir -p ${CHROOT}/boot/extlinux
@@ -87,3 +110,5 @@ cp configs/udev/rules.d/99-sms-gateway.rules ${CHROOT}/etc/udev/rules.d/99-sms-g
 
 # backup rootfs
 tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
+
+echo "done"

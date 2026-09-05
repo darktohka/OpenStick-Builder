@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+
+ip netns add null 2>/dev/null || true
+
+max_wait=20
+waited=0
+
+while [ "$waited" -lt "$max_wait" ]; do
+    if ip link show wwan7 >/dev/null 2>&1; then
+        break
+    fi
+
+    sleep 1
+    waited=$((waited + 1))
+done
+
+for i in wwan1 wwan2 wwan3 wwan4 wwan5 wwan6 wwan7; do
+    if ip link show "$i" >/dev/null 2>&1; then
+        ip link set "$i" netns null
+    fi
+done
+
+# Some boards require this delay to initialize the modem.
+sleep 2
+
+if ! ip -4 addr show wwan0 | grep -q 'inet '; then
+    systemctl restart ModemManager.service
+fi

@@ -1,0 +1,23 @@
+[Unit]
+# DHCP server for the wifi hotspot subnet (192.168.4.0/24).
+#
+# dnsmasq is deliberately started as a dedicated service instead of relying
+# on NetworkManager's "shared" mode for wlan0 (which would run the hotspot
+# through the broken wpa_supplicant path) or on the stock dnsmasq.service
+# (which conflicts with the dnsmasq instances NetworkManager already runs for
+# usb0/LTE and the DNS cache).
+#
+# DNS is disabled (port=0) so this instance does not fight NetworkManager's
+# own dnsmasq over 127.0.0.1:53. DHCP clients are handed the LTE network's
+# upstream DNS servers instead.
+Description=OpenStick Hotspot DHCP/DNS (dnsmasq for wlan0)
+After=openstick-hotspot.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/dnsmasq --conf-file=/etc/dnsmasq-openstick.conf --keep-in-foreground --no-daemon --pid-file=/run/openstick-dnsmasq.pid
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
