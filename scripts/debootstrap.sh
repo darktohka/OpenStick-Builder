@@ -9,11 +9,11 @@ HOST_NAME=${HOST_NAME=openstick-debian}
 rm -rf ${CHROOT}
 
 debootstrap --foreign --arch arm64 \
-    --keyring keyrings/debian-archive-keyring.gpg  --include qemu-user ${RELEASE} ${CHROOT}
+    --keyring keyrings/debian-archive-keyring.gpg ${RELEASE} ${CHROOT}
 
-#cp $(which qemu-aarch64) ${CHROOT}/usr/bin/qemu-aarch64-static
+cp $(which qemu-aarch64-static) ${CHROOT}/usr/bin
 
-chroot ${CHROOT} qemu-aarch64 /bin/bash /debootstrap/debootstrap --second-stage
+chroot ${CHROOT} qemu-aarch64-static /bin/bash /debootstrap/debootstrap --second-stage
 
 cat << EOF > ${CHROOT}/etc/apt/sources.list
 deb http://deb.debian.org/debian ${RELEASE} main contrib non-free-firmware
@@ -28,7 +28,7 @@ mount -o bind /dev/pts/ ${CHROOT}/dev/pts/
 mount -o bind /run ${CHROOT}/run/
 
 cp scripts/setup.sh ${CHROOT}
-chroot ${CHROOT} qemu-aarch64 /bin/sh -c /setup.sh
+chroot ${CHROOT} qemu-aarch64-static /bin/sh -c /setup.sh
 
 # cleanup
 for a in proc sys dev/pts dev run; do
