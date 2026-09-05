@@ -9,7 +9,7 @@ HOST_NAME=${HOST_NAME=openstick-debian}
 rm -rf ${CHROOT}
 
 debootstrap --foreign --arch arm64 \
-    --keyring keyrings/debian-archive-keyring.gpg ${RELEASE} ${CHROOT}
+    --keyring /usr/share/keyrings/debian-archive-keyring.gpg ${RELEASE} ${CHROOT}
 
 cp $(which qemu-aarch64-static) ${CHROOT}/usr/bin
 
