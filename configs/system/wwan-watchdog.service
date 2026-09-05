@@ -1,0 +1,8 @@
+[Unit]
+Description=WWAN/Modem connectivity watchdog
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wwan-watchdog.sh
+StandardOutput=journal
+StandardError=journal

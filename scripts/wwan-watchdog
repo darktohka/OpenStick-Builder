@@ -1,0 +1,105 @@
+#!/bin/bash
+# /usr/local/sbin/wwan-watchdog.sh
+# Detects a wedged/crashed cellular modem data path on MSM8916 sticks and
+# recovers it. Escalates: nmcli reconnect -> restart ModemManager/NM -> reboot.
+# State kept in /run so each boot starts fresh.
+#
+# Failure signature we watch for (observed on this hardware):
+#   * baseband remoteproc fatal crash (lte_ml1_sleepmgr_stm.c)
+#   * ModemManager still reports modem "registered"/"connected" on LTE ...
+#   * ...but the wwan0 data netdev will not come up ("ip link set wwan0 up"
+#     returns EINVAL), so NetworkManager's 'lte' connection stays down and
+#     the only reliable recovery is a reboot.
+#
+# We deliberately distinguish "modem registered but no data" (the wedge:
+# reboot eagerly) from "modem not registered" (likely no cell coverage:
+# be patient, reboot rarely, since a reboot will not create signal).
+
+LOG=/var/log/wwan-watchdog.log
+STATE=/run/wwan-watchdog.state
+LTE_CON=lte
+
+WEDGE_REBOOT_AFTER_SEC=300       # registered-but-no-data for 5 min -> reboot
+NOMODEM_REBOOT_AFTER_SEC=1800    # no modem registered for 30 min -> reboot
+MAX_SOFT=2                       # soft recoveries per outage before reboot
+
+log() { echo "$(date '+%F %T') - $*" | tee -a "$LOG"; }
+
+if [ -f "$STATE" ]; then . "$STATE"; else
+    SOFT=0
+    DOWN_SINCE=""
+fi
+
+save() { cat > "$STATE" <<EOF
+SOFT=$SOFT
+DOWN_SINCE="$DOWN_SINCE"
+EOF
+}
+
+# Healthy? The 'lte' NM connection is activated on wwan0qmi0 with an IP.
+if nmcli -t -f DEVICE,STATE con show --active 2>/dev/null | grep -q '^wwan0qmi0:activated' \
+   && ip -4 addr show wwan0 2>/dev/null | grep -q 'inet '; then
+    if [ -n "$DOWN_SINCE" ]; then log "connectivity restored (was down since $DOWN_SINCE)"; fi
+    DOWN_SINCE=""
+    SOFT=0
+    save
+    exit 0
+fi
+
+now=$(date +%s)
+if [ -z "$DOWN_SINCE" ]; then
+    DOWN_SINCE=$now
+    log "LTE data path down (wwan0qmi0 not activated with an IP)"
+fi
+down_sec=$(( now - DOWN_SINCE ))
+
+# Is the modem control plane up/registered at all? (Read the modem's own
+# Status/state field only -- the first 'state:' under Status.)
+MODEM=$(mmcli -L 2>/dev/null | grep -oP '/Modem/\K[0-9]+' | head -1)
+MODEM_UP=""
+if [ -n "$MODEM" ]; then
+    ST=$(mmcli -m "$MODEM" 2>/dev/null | sed -e 's/\x1b\[[0-9;]*m//g' \
+         | grep -oP '^\s*\|\s+state:\s*\K[a-z-]+' | head -1)
+    case "$ST" in
+        registered|connected|connecting) MODEM_UP=1 ;;
+    esac
+fi
+
+if [ -z "$MODEM_UP" ]; then
+    # No usable modem/registration -> probably coverage. Reboot only after the
+    # long patience window (a reboot may still re-sync a stuck baseband).
+    if [ "$down_sec" -ge "$NOMODEM_REBOOT_AFTER_SEC" ]; then
+        log "no registered modem for ${down_sec}s >= ${NOMODEM_REBOOT_AFTER_SEC}s; rebooting"
+        /sbin/reboot
+    fi
+    exit 0
+fi
+
+# Modem is registered/connected but the data path is down -> the wedge.
+if [ "$down_sec" -ge "$WEDGE_REBOOT_AFTER_SEC" ]; then
+    log "modem registered but data down for ${down_sec}s >= ${WEDGE_REBOOT_AFTER_SEC}s; rebooting"
+    /sbin/reboot
+    exit 0
+fi
+
+# Soft recovery attempts before the reboot threshold.
+if [ "$SOFT" -lt "$MAX_SOFT" ]; then
+    SOFT=$(( SOFT + 1 ))
+    save
+    log "soft attempt $SOFT: restarting NetworkManager + ModemManager"
+    systemctl restart ModemManager
+    systemctl restart NetworkManager
+    sleep 25
+    if nmcli con up "$LTE_CON" >/dev/null 2>&1; then
+        sleep 5
+        if ip -4 addr show wwan0 2>/dev/null | grep -q 'inet '; then
+            log "soft recovery OK (attempt $SOFT)"
+            DOWN_SINCE=""
+            SOFT=0
+            save
+            exit 0
+        fi
+    fi
+    log "soft attempt $SOFT did not restore data"
+fi
+exit 0

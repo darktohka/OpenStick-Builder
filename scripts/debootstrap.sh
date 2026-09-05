@@ -45,15 +45,17 @@ sed -i "/localhost/ s/$/ ${HOST_NAME}/" ${CHROOT}/etc/hosts
 #
 # configs/system/ is copied verbatim into /etc/systemd/system, including the
 # *.wants/ symlink trees, which is what enables the units for their targets
-# (multi-user.target.wants/, usb-gadget.target.wants/). Units enabled this
-# way: cleanup-wwan, disable-cpu-cores, dnsmasq-openstick, msm-firmware-loader,
-# openstick-hotspot, usb-gadget.
+# (multi-user.target.wants/, timers.target.wants/, usb-gadget.target.wants/).
+# Units enabled this way: cleanup-wwan, disable-cpu-cores, dnsmasq-openstick,
+# msm-firmware-loader, openstick-hotspot, usb-gadget, wwan-watchdog.
 cp -a configs/system/* ${CHROOT}/etc/systemd/system
 
 cp -a scripts/msm-firmware-loader.sh ${CHROOT}/usr/sbin
 cp -a scripts/openstick-hotspot-setup.sh ${CHROOT}/usr/local/sbin
 # cleanup-wwan is ExecStart'd by cleanup-wwan.service
 cp -a scripts/cleanup-wwan ${CHROOT}/usr/local/sbin
+# wwan-watchdog is ExecStart'd by wwan-watchdog.service (timer-enabled)
+cp -a scripts/wwan-watchdog ${CHROOT}/usr/local/sbin
 
 # setup NetworkManager + wifi hotspot
 mkdir -p ${CHROOT}/etc/NetworkManager ${CHROOT}/etc/hostapd
