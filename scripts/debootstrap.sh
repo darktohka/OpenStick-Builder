@@ -51,9 +51,7 @@ cp configs/99-custom.conf ${CHROOT}/etc/NetworkManager/conf.d/
 cp configs/install_dnsproxy.sh ${CHROOT}
 cp scripts/setup.sh ${CHROOT}
 
-# Copy qemu static and run setup script in chroot
-cp /usr/bin/qemu-aarch64-static ${CHROOT}/usr/bin/
-chroot ${CHROOT} qemu-aarch64-static /bin/sh -c "/setup.sh"
+chroot ${CHROOT} /bin/sh -c "/setup.sh"
 
 # cleanup
 for a in proc sys dev/pts dev run; do
@@ -62,7 +60,6 @@ done;
 
 rm ${CHROOT}/install_dnsproxy.sh
 rm -f ${CHROOT}/setup.sh
-rm -f ${CHROOT}/usr/bin/qemu-aarch64-static
 echo -n > ${CHROOT}/root/.bash_history
 
 echo ${HOST_NAME} > ${CHROOT}/etc/hostname
@@ -110,4 +107,4 @@ mkdir -p ${CHROOT}/lib/firmware/msm-firmware-loader
 echo "PARTUUID=80780b1d-0fe1-27d3-23e4-9244e62f8c46\t/boot\text2\tdefaults\t0 2" > ${CHROOT}/etc/fstab
 
 # backup rootfs
-tar cpzf rootfs.tgz --exclude="usr/bin/qemu-aarch64-static" -C rootfs .
+tar cpzf rootfs.tgz -C rootfs .

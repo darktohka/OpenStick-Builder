@@ -48,7 +48,6 @@ apt install -qqy --no-install-recommends \
     qrtr-tools \
     rfkill \
     rmtfs \
-    ruby \
     socat \
     sudo \
     systemd-timesyncd \
@@ -59,7 +58,9 @@ apt install -qqy --no-install-recommends \
     wget \
     wireguard-tools \
     wpasupplicant \
-    zram-tools
+    zram-tools \
+    nano \
+    htop
 
 # Cleanup in one go
 apt autoremove -qqy
